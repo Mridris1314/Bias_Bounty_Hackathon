@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: biasbounty-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: prod
+      - key: GEMINI_API_KEY
+        sync: false                    # set in Render dashboard — powers the crew brain
+      - key: GROQ_API_KEY
+        sync: false                    # optional — only needed if CREW_LLM_MODEL uses groq/
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_COLLECTION
+        value: regulations
+      - key: CREW_LLM_MODEL
+        # Validated in testing: reliable tool-calling, generous free-tier
+        # throughput. Groq's free tier is much more rate-limit-prone for
+        # this 2-LLM-call pipeline — see MEMORY notes if reconsidering.
+        value: gemini/gemini-2.5-flash
+      - key: MAX_PROMPTS_PER_DIMENSION
+        value: "4"
+      - key: ENABLE_RETRY
+        value: "true"
+      - key: MAX_RETRIES
+        value: "5"
+      - key: INTER_AGENT_PACING_S
+        value: "15"
+      - key: CORS_ORIGINS
+        # Replace with your Vercel domain after first deploy
+        value: '["https://biasbounty.vercel.app"]'
