@@ -18,9 +18,13 @@ class RegulationRetriever:
 
     # ------------------------------------------------------------------
     def _get_embed_model(self):
+        # fastembed (ONNX Runtime) instead of sentence-transformers (PyTorch)
+        # — same model weights, but without pulling in a multi-hundred-MB
+        # torch dependency. Matters on memory-constrained deploys (e.g.
+        # Render's free tier caps runtime RAM at 512MB).
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer(self.settings.embedding_model)
+            from fastembed import TextEmbedding
+            self._model = TextEmbedding(model_name=self.settings.embedding_model)
         return self._model
 
     def _init_backend(self) -> None:
@@ -52,7 +56,7 @@ class RegulationRetriever:
         # caller passing "eu" instead of "EU" would silently get zero hits
         # rather than an error — normalise instead of trusting caller casing.
         jurisdictions = [j.upper() for j in jurisdictions] if jurisdictions else jurisdictions
-        embed = self._get_embed_model().encode(query, normalize_embeddings=True).tolist()
+        embed = next(self._get_embed_model().embed([query])).tolist()
 
         kind, client = self._backend
         if kind == "qdrant":

@@ -14,19 +14,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-# Pre-download embedding model so first request is fast on cold start
-RUN python -c "from sentence_transformers import SentenceTransformer; \
-    SentenceTransformer('BAAI/bge-small-en-v1.5')"
-
 COPY . .
 
-RUN mkdir -p /app/data/chroma
+# Ingest regulations into local Chroma at BUILD time, baked into the image,
+# rather than at container startup. This step loads a torch-based embedding
+# model, which combined with the FastAPI/CrewAI process easily exceeds a
+# free-tier runtime instance's RAM (512MB on Render) if done at boot —
+# Render's build step has more headroom, and the persisted Chroma data
+# survives as an image layer, so subsequent restarts don't repeat this work.
+# Only runs against local Chroma (no QDRANT_URL at build time); if deploying
+# with a Qdrant Cloud cluster, ingest against it separately per the README.
+RUN python -m rag.ingest
 
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -fsS http://localhost:${PORT:-8000}/health || exit 1
 
-# Ingest regulations on start (idempotent), then serve.
-CMD python -m rag.ingest && \
-    uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1

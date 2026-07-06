@@ -87,21 +87,19 @@ def chunk_docs(docs: Iterable[dict]) -> list[dict]:
 def ingest_qdrant(chunks: list[dict]) -> None:
     from qdrant_client import QdrantClient
     from qdrant_client.models import Distance, PointStruct, VectorParams
-    from sentence_transformers import SentenceTransformer
+    from fastembed import TextEmbedding
 
     settings = get_settings()
     client = QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
-    model = SentenceTransformer(settings.embedding_model)
-    dim = model.get_sentence_embedding_dimension()
+    model = TextEmbedding(model_name=settings.embedding_model)
+    embeddings = list(model.embed([c["text"] for c in chunks]))
+    dim = len(embeddings[0])
 
     client.recreate_collection(
         collection_name=settings.qdrant_collection,
         vectors_config=VectorParams(size=dim, distance=Distance.COSINE),
     )
 
-    embeddings = model.encode(
-        [c["text"] for c in chunks], normalize_embeddings=True, show_progress_bar=True
-    )
     points = [
         PointStruct(
             id=str(uuid.uuid5(uuid.NAMESPACE_URL, c["id"])),
@@ -123,7 +121,7 @@ def ingest_qdrant(chunks: list[dict]) -> None:
 
 def ingest_chroma(chunks: list[dict]) -> None:
     import chromadb
-    from sentence_transformers import SentenceTransformer
+    from fastembed import TextEmbedding
 
     settings = get_settings()
     os.makedirs(settings.chroma_persist_dir, exist_ok=True)
@@ -134,10 +132,8 @@ def ingest_chroma(chunks: list[dict]) -> None:
         pass
     collection = client.create_collection(settings.qdrant_collection)
 
-    model = SentenceTransformer(settings.embedding_model)
-    embeddings = model.encode(
-        [c["text"] for c in chunks], normalize_embeddings=True, show_progress_bar=True
-    ).tolist()
+    model = TextEmbedding(model_name=settings.embedding_model)
+    embeddings = [e.tolist() for e in model.embed([c["text"] for c in chunks])]
 
     collection.add(
         ids=[str(uuid.uuid5(uuid.NAMESPACE_URL, c["id"])) for c in chunks],
