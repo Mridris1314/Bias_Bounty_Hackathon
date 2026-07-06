@@ -16,6 +16,7 @@ node_modules/
 out/
 .env.local
 .env*.local
+*.tsbuildinfo
 
 # --- Data ---
 backend/data/chroma/

@@ -1,5 +1,9 @@
-// Backend requests go through Next.js rewrite: /api/backend/* → backend
-const BASE = "/api/backend";
+// Talk to the backend directly from the browser rather than proxying
+// through a Next.js rewrite. The rewrite path works for quick requests, but
+// the audit stream is a long-lived SSE connection (30-150+s) — proxying
+// that through Vercel's serverless functions is unreliable (execution/
+// streaming limits) and was observed to 502 mid-stream in production.
+const BASE = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000").replace(/\/$/, "");
 const V1 = `${BASE}/api/v1`;
 
 export type Dimension =
