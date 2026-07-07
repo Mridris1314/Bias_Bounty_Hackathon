@@ -79,14 +79,16 @@ const PRESETS: {
     badgeColor: "mint",
   },
   {
-    // gemini-2.0-flash currently has zero free-tier request quota (a hard
-    // 429 on every call, not just a low limit) — verified against the
-    // live API. 2.5 flash has real free-tier headroom (though capped at
-    // 20 requests/day — fine for occasional testing, not heavy demo use).
-    name: "Gemini 2.5 Flash",
+    // gemini-2.0-flash has zero free-tier request quota (hard 429 on every
+    // call). Plain gemini-2.5-flash has "thinking" mode on by default,
+    // which silently consumes the response token budget and can truncate
+    // replies to near-nothing even with a generous max_tokens — bad for
+    // measuring bias from response text. flash-lite has neither problem:
+    // real free-tier daily headroom and complete, non-truncated replies.
+    name: "Gemini 2.5 Flash-Lite",
     provider: "gemini",
     base_url: "https://generativelanguage.googleapis.com/v1beta/openai",
-    model: "gemini-2.5-flash",
+    model: "gemini-2.5-flash-lite",
     badge: "FAST · FREE",
     badgeColor: "ok",
   },
