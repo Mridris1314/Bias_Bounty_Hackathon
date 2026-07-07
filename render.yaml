@@ -20,10 +20,15 @@ services:
       - key: QDRANT_COLLECTION
         value: regulations
       - key: CREW_LLM_MODEL
-        # Validated in testing: reliable tool-calling, generous free-tier
-        # throughput. Groq's free tier is much more rate-limit-prone for
-        # this 2-LLM-call pipeline — see MEMORY notes if reconsidering.
-        value: gemini/gemini-2.5-flash
+        # gemini-2.5-flash's free tier caps at just 20 requests/DAY —
+        # exhausted within ~20 minutes of light testing, not something
+        # retries can fix (a daily cap doesn't reset with backoff). The
+        # "-lite" variant is built for high free-tier throughput and has
+        # a far more generous daily allowance with the same reliability.
+        # (gemini-2.0-flash and gemini-2.0-flash-lite currently show a
+        # hard 0 free-tier quota on this key — seemingly deprecated for
+        # free access — so avoid those for now.)
+        value: gemini/gemini-2.5-flash-lite
       - key: MAX_PROMPTS_PER_DIMENSION
         value: "4"
       - key: ENABLE_RETRY

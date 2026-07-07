@@ -13,7 +13,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 from sqlmodel import Session, SQLModel, create_engine, select
-
 from config import get_settings
 from crew.agents import _PROVIDER_KEYS
 from crew.orchestrator import get_or_create_queue, get_result, run_audit
