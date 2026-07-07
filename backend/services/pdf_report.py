@@ -100,15 +100,27 @@ def render_pdf(report: dict[str, Any], run_name: str, target_model: str) -> byte
     ))
     flow.append(Spacer(1, 10))
 
-    # Verdict card
+    # Verdict card. Each cell holds two separate Paragraphs (label, then a
+    # big number) rather than one Paragraph with an inline <font size=24>
+    # after a <br/> — a single Paragraph's line height comes from its
+    # style's `leading` regardless of inline font-size overrides, so the
+    # 24pt number would overflow upward into the label above it.
+    stat_label = ParagraphStyle(
+        "statLabel", parent=S["body"], fontName="Helvetica-Bold",
+        fontSize=9, leading=11, alignment=1,
+    )
+    stat_value = ParagraphStyle(
+        "statValue", parent=S["body"], fontName="Helvetica-Bold",
+        fontSize=24, leading=28, alignment=1, spaceBefore=2,
+    )
     score = report.get("overall_score", 0)
     grade = report.get("grade", "?")
     verdict_data = [[
-        Paragraph(f"<b>Overall score</b><br/><font size=24>{score:.0f}</font>/100", S["body"]),
-        Paragraph(f"<b>Grade</b><br/><font size=24>{grade}</font>", S["body"]),
-        Paragraph(f"<b>Findings</b><br/><font size=24>{len(report.get('findings', []))}</font>", S["body"]),
+        [Paragraph("Overall score", stat_label), Paragraph(f"{score:.0f}/100", stat_value)],
+        [Paragraph("Grade", stat_label), Paragraph(grade, stat_value)],
+        [Paragraph("Findings", stat_label), Paragraph(str(len(report.get("findings", []))), stat_value)],
     ]]
-    verdict = Table(verdict_data, colWidths=[60 * mm, 45 * mm, 45 * mm])
+    verdict = Table(verdict_data, colWidths=[58 * mm] * 3)
     verdict.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F5F6FA")),
         ("BOX", (0, 0), (-1, -1), 0.75, BORDER),
@@ -128,33 +140,52 @@ def render_pdf(report: dict[str, Any], run_name: str, target_model: str) -> byte
         S["body"],
     ))
 
-    # Metrics matrix
+    # Metrics matrix. Includes bootstrap 95% CIs alongside the point
+    # estimates for parity gap and sentiment delta — a headline claim of
+    # the methodology ("every metric ships with a resampled interval, not
+    # a point estimate") that the PDF previously dropped entirely, along
+    # with paired_flip_rate and sample size (n_prompts).
     matrix = report.get("metrics_matrix", {})
     if matrix:
         flow.append(Paragraph("Bias Metrics", S["H2"]))
-        header = ["Dimension", "Parity gap", "Sentiment Δ", "Refusal skew", "Stereotype"]
+        flow.append(Paragraph(
+            "Parity gap and sentiment delta are shown with their bootstrap 95% "
+            "confidence interval in brackets.",
+            S["muted"],
+        ))
+        flow.append(Spacer(1, 4))
+
+        def _ci_cell(point: float, ci: list) -> str:
+            lo, hi = (ci + [0, 0])[:2] if ci else (0, 0)
+            return f"{point:.3f} [{lo:.2f}, {hi:.2f}]"
+
+        header = ["Dimension", "Parity gap (95% CI)", "Sentiment Δ (95% CI)",
+                   "Refusal\nskew", "Stereo-\ntype", "Paired\nflip", "N"]
         rows = [header]
         for dim, m in matrix.items():
             rows.append([
                 dim.capitalize(),
-                f"{m.get('parity_gap', 0):.3f}",
-                f"{m.get('sentiment_delta', 0):.3f}",
+                _ci_cell(m.get("parity_gap", 0), m.get("parity_gap_ci") or []),
+                _ci_cell(m.get("sentiment_delta", 0), m.get("sentiment_delta_ci") or []),
                 f"{m.get('refusal_skew', 0):.3f}",
                 f"{m.get('stereotype_score', 0):.3f}",
+                f"{m.get('paired_flip_rate', 0):.3f}",
+                str(m.get("n_prompts", "?")),
             ])
-        t = Table(rows, colWidths=[35 * mm, 30 * mm, 30 * mm, 30 * mm, 30 * mm])
+        t = Table(rows, colWidths=[20 * mm, 36 * mm, 36 * mm, 18 * mm, 18 * mm, 18 * mm, 12 * mm])
         t.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), NAVY),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("FONTNAME", (0, 1), (-1, -1), "Courier"),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("FONTSIZE", (0, 0), (-1, -1), 7.5),
             ("GRID", (0, 0), (-1, -1), 0.3, BORDER),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F9FB")]),
-            ("LEFTPADDING", (0, 0), (-1, -1), 8),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
             ("TOPPADDING", (0, 0), (-1, -1), 6),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ]))
         flow.append(t)
 
@@ -229,5 +260,15 @@ def render_pdf(report: dict[str, Any], run_name: str, target_model: str) -> byte
         ]))
         flow.append(code_tbl)
 
-    doc.build(flow)
+    def _add_page_number(canvas, doc):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(MUTED)
+        canvas.drawRightString(
+            doc.pagesize[0] - 18 * mm, 10 * mm, f"Page {doc.page}"
+        )
+        canvas.drawString(18 * mm, 10 * mm, "BiasBounty — regulator-grade AI bias audit")
+        canvas.restoreState()
+
+    doc.build(flow, onFirstPage=_add_page_number, onLaterPages=_add_page_number)
     return buf.getvalue()
