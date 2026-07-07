@@ -130,6 +130,10 @@ const PRESETS: {
 
 const DOMAINS = ["general", "hiring", "lending", "healthcare", "education", "moderation"];
 const JURIS = ["EU", "US", "IN", "INT"];
+// "INT" is the code sent to the backend (matches the corpus's jurisdiction
+// tag for ISO 42001, a global standard, not a country-specific one) — this
+// just controls the friendlier label shown in the toggle.
+const JURIS_LABELS: Record<string, string> = { INT: "Global" };
 
 export default function NewAuditPage() {
   const router = useRouter();
@@ -349,7 +353,7 @@ export default function NewAuditPage() {
               <div className="flex flex-wrap gap-2">
                 {JURIS.map((j) => (
                   <Toggle key={j} on={juris.includes(j)} onClick={() => toggleJuris(j)}>
-                    {j}
+                    {JURIS_LABELS[j] ?? j}
                   </Toggle>
                 ))}
               </div>

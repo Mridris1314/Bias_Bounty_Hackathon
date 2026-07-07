@@ -537,7 +537,7 @@ function FindingCard({ finding, index }: { finding: any; index: number }) {
             {finding.regulations.slice(0, 3).map((r: any, i: number) => (
               <li key={i} className="text-sm">
                 <span className="font-mono text-[11px] text-mint">
-                  {r.jurisdiction} · {r.regulation} · {r.clause}
+                  {r.jurisdiction === "INT" ? "Global" : r.jurisdiction} · {r.regulation} · {r.clause}
                 </span>
                 <p className="mt-1 font-display italic text-text-muted">
                   &ldquo;{(r.excerpt ?? "").slice(0, 240)}…&rdquo;
