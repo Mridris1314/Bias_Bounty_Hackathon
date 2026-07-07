@@ -20,13 +20,15 @@ services:
       - key: QDRANT_COLLECTION
         value: regulations
       - key: CREW_LLM_MODEL
-        # Gemini's free tier caps at 20 requests/DAY per model per project
-        # — a hard wall retries can't fix, easily exhausted by a day of
-        # testing. Groq (groq/llama-3.1-8b-instant) is the fallback if
-        # this key's daily quota runs out and a fresh key isn't handy —
-        # it resets per-MINUTE instead, and the pipeline's 2-LLM-call
-        # design fits comfortably within Groq's free-tier TPM cap.
-        value: gemini/gemini-2.5-flash-lite
+        # Gemini's free tier caps at 20 requests/DAY per model PER PROJECT
+        # (not per key — multiple keys from the same account/project share
+        # one exhausted pool). That's a hard wall retries can't fix, and it
+        # kept blocking real usage of the live site. Groq resets per-MINUTE
+        # instead, and the pipeline's 2-LLM-call design fits comfortably
+        # within its free-tier TPM cap — switch back to
+        # gemini/gemini-2.5-flash-lite if a genuinely fresh Gemini project
+        # becomes available.
+        value: groq/llama-3.1-8b-instant
       - key: MAX_PROMPTS_PER_DIMENSION
         value: "4"
       - key: ENABLE_RETRY
