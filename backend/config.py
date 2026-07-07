@@ -47,7 +47,12 @@ class Settings(BaseSettings):
     chroma_persist_dir: str = "./data/chroma"
 
     # --- Embeddings ---
-    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    # Called remotely via the Gemini embeddings API (gemini_api_key) rather
+    # than loading a model into this process — on a memory-constrained
+    # deploy (Render's free tier caps runtime RAM at 512MB), a local
+    # embedding model was the single largest memory spike in the app,
+    # pushing the process over the cap and crashing mid-audit.
+    embedding_model: str = "gemini-embedding-001"
 
     # --- Storage ---
     sqlite_url: str = "sqlite:///./data/biasbounty.db"

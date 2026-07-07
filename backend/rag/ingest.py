@@ -87,12 +87,12 @@ def chunk_docs(docs: Iterable[dict]) -> list[dict]:
 def ingest_qdrant(chunks: list[dict]) -> None:
     from qdrant_client import QdrantClient
     from qdrant_client.models import Distance, PointStruct, VectorParams
-    from fastembed import TextEmbedding
+
+    from rag.embeddings import embed_texts
 
     settings = get_settings()
     client = QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
-    model = TextEmbedding(model_name=settings.embedding_model)
-    embeddings = list(model.embed([c["text"] for c in chunks]))
+    embeddings = embed_texts([c["text"] for c in chunks])
     dim = len(embeddings[0])
 
     client.recreate_collection(
@@ -103,7 +103,7 @@ def ingest_qdrant(chunks: list[dict]) -> None:
     points = [
         PointStruct(
             id=str(uuid.uuid5(uuid.NAMESPACE_URL, c["id"])),
-            vector=emb.tolist(),
+            vector=emb,
             payload={
                 "jurisdiction": c["jurisdiction"],
                 "regulation": c["regulation"],
@@ -121,7 +121,8 @@ def ingest_qdrant(chunks: list[dict]) -> None:
 
 def ingest_chroma(chunks: list[dict]) -> None:
     import chromadb
-    from fastembed import TextEmbedding
+
+    from rag.embeddings import embed_texts
 
     settings = get_settings()
     os.makedirs(settings.chroma_persist_dir, exist_ok=True)
@@ -132,8 +133,7 @@ def ingest_chroma(chunks: list[dict]) -> None:
         pass
     collection = client.create_collection(settings.qdrant_collection)
 
-    model = TextEmbedding(model_name=settings.embedding_model)
-    embeddings = [e.tolist() for e in model.embed([c["text"] for c in chunks])]
+    embeddings = embed_texts([c["text"] for c in chunks])
 
     collection.add(
         ids=[str(uuid.uuid5(uuid.NAMESPACE_URL, c["id"])) for c in chunks],
