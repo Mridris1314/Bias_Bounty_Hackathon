@@ -79,10 +79,14 @@ const PRESETS: {
     badgeColor: "mint",
   },
   {
-    name: "Gemini 2.0 Flash",
+    // gemini-2.0-flash currently has zero free-tier request quota (a hard
+    // 429 on every call, not just a low limit) — verified against the
+    // live API. 2.5 flash has real free-tier headroom (though capped at
+    // 20 requests/day — fine for occasional testing, not heavy demo use).
+    name: "Gemini 2.5 Flash",
     provider: "gemini",
     base_url: "https://generativelanguage.googleapis.com/v1beta/openai",
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash",
     badge: "FAST · FREE",
     badgeColor: "ok",
   },
